@@ -1,28 +1,83 @@
 """
-list-running-vms.py: 
+List all VMs in your subscriptions in a formatted table
 
-To install dependencies:
-sudo apt update
-sudo apt install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0
-sudo apt install gir1.2-secret-1
-pip install wheel 
-pip install pycairo PyGObject
-pip install azure-mgmt-resource azure-mgmt-compute azure-mgmt-monitor
+You must login to Azure CLI before you run this script:
+$ az login
+
+Prerequisites:
+(env) $ pip install azure-mgmt-resource azure-identity azure-cli-core tabulate
 """
 
+from azure.mgmt.resource import SubscriptionClient as SubClient
+from azure.mgmt.resource import ResourceManagementClient as ResourceClient
+from azure.mgmt.compute import ComputeManagementClient as ComputeClient
 from azure.identity import AzureCliCredential
-from azure.mgmt.resource import SubscriptionClient, ResourceManagementClient
+from tabulate import tabulate
+
+
+def sublist(client):
+    return([sub.subscription_id for sub in client.subscriptions.list()])
+
+
+def grouplist(client):
+    return([group.name for group in client.resource_groups.list()])
+
+
+def vmlist(client, group):
+    return([vm.name for vm in client.virtual_machines.list(group)])
+
+
+def vmstatus(client, group, vm):
+    # Sometimes, the instanceview.statuses list is empty or contains only one element
+    # This seems like a random problem in Azure so we check for it and move on
+    try:
+        results = client.virtual_machines.instance_view(group, vm).statuses[1].code
+    except IndexError:
+        results = "Unknown"
+    return(results)
+
+
+def vmsize(client, group, vm):
+    return(client.virtual_machines.get(group, vm).hardware_profile.vm_size)
+
+
+def vmlocation(client, group, vm):
+    return(client.virtual_machines.get(group, vm).location)
+
+
+def azure_vm_table(credentials):
+    headers = ['VM name','ResourceGroup','Size','Location','Status']
+    table = list()
+    table.append(headers)
+
+    subscription_client = SubClient(credentials)
+    subscription_ids = sublist(subscription_client)
+    for subscription_id in subscription_ids:
+        resource_client = ResourceClient(credentials, subscription_id)
+        resource_groups = grouplist(resource_client)
+        for resource_group in resource_groups:
+            compute_client = ComputeClient(credentials, subscription_id)
+            vms = vmlist(compute_client, resource_group)
+            for vm in vms:
+                vm_status = vmstatus(compute_client, resource_group, vm)
+                vm_size = vmsize(compute_client, resource_group, vm)
+                vm_location = vmlocation(compute_client, resource_group, vm)
+                table.append([vm, resource_group, vm_size, vm_location, vm_status])
+
+    return(table)
+
+
+def print_table(input_list):
+    formatted_table = tabulate(input_list, headers='firstrow', tablefmt='pretty')
+    print(formatted_table)
+
+
+def sort_status(input_list):
+    return(sorted(input_list, key = lambda x: x[4]))
+
 
 
 if __name__ == '__main__':
     credentials = AzureCliCredential()
-    print(credentials)
-    # print(subscription_id)
-    # print(tenant_id)
-    subscription_client = SubscriptionClient(credentials)
-    subscriptions = subscription_client.subscriptions.list()
-    for subscription in subscriptions:
-        print(subscription.subscription_id)
 
-
-
+    print_table(sort_status(azure_vm_table(credentials)))
