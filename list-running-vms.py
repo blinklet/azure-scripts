@@ -5,7 +5,7 @@ You must login to Azure CLI before you run this script:
 $ az login
 
 Prerequisites:
-(env) $ pip install azure-mgmt-resource azure-identity azure-cli-core tabulate
+(env) $ pip install azure-mgmt-resource azure-mgmt-compute azure-identity azure-cli-core tabulate
 """
 
 from azure.mgmt.resource import SubscriptionClient as SubClient
@@ -45,7 +45,7 @@ def vmlocation(client, group, vm):
     return(client.virtual_machines.get(group, vm).location)
 
 
-def azure_vm_table(credentials):
+def build_vm_table(credentials):
     headers = ['VM name','ResourceGroup','Size','Location','Status']
     table = list()
     table.append(headers)
@@ -73,11 +73,14 @@ def print_table(input_list):
 
 
 def sort_status(input_list):
-    return(sorted(input_list, key = lambda x: x[4]))
-
+    # Sort the table by the Status field, except for the first row
+    new_list = list()
+    new_list.append(input_list[0])
+    for row in sorted(input_list[1:], key = lambda x: x[4]):
+        new_list.append(row)
+    return(new_list)
 
 
 if __name__ == '__main__':
     credentials = AzureCliCredential()
-
-    print_table(sort_status(azure_vm_table(credentials)))
+    print_table(sort_status(build_vm_table(credentials)))
