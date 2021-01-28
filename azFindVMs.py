@@ -21,46 +21,28 @@ def find_running_vm(credentials):
 
     subscription_client = SubscriptionClient(credentials)
     subscriptions = subscription_client.subscriptions.list()
-    for subscription in subscriptions:
+    for subscription in subscriptions:  # iterate through subscriptions
         subscription_id = subscription.subscription_id
         subscription_name = subscription.display_name
+
         resource_client = ResourceManagementClient(credentials, subscription_id)
         resource_groups = resource_client.resource_groups.list()
-        for resource_group in resource_groups:
+        for resource_group in resource_groups:  # iterate through resource groups
             resource_group_name = resource_group.name
+
             compute_client = ComputeManagementClient(credentials, subscription_id)
             vms = compute_client.virtual_machines.list(resource_group_name)
             monitor_client = MonitorManagementClient(credentials, subscription_id)
             for vm in vms:
-                status = compute_client.virtual_machines.instance_view(resource_group_name, vm.name).statuses
-                print(tuple(status))
-                print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-                # for stat in status:
-                #     print(stat)
-    # subscription_client = SubscriptionClient(credentials)
-    # subscriptions = subscription_client.subscriptions.list()
-    # for subscription in subscriptions:  # iterate through subscriptions
-    #     subscription_id = subscription.subscription_id
-    #     subscription_name = subscription.display_name
-
-    #     resource_client = ResourceManagementClient(credentials, subscription_id)
-    #     resource_groups = resource_client.resource_groups.list()
-    #     for resource_group in resource_groups:  # iterate through resource groups
-    #         resource_group_name = resource_group.name
-
-    #         compute_client = ComputeManagementClient(credentials, subscription_id)
-    #         vms = compute_client.virtual_machines.list(resource_group_name)
-    #         monitor_client = MonitorManagementClient(credentials, subscription_id)
-    #         for vm in vms:
-    #             vm_id = vm.id
-    #             # get vm status, either 'PowerState/running', 'PowerState/deallocating'  or 'PowerState/deallocated'
-    #             status = compute_client.virtual_machines.instance_view(resource_group_name, vm.name).statuses[1].code
-    #             uptime = get_vm_uptime(vm_id, monitor_client)
-    #             if uptime is not None:
-    #                 uptime = int(uptime * 10) / 10  # shorten to 1 decimal point
-    #                 running_vm_data.append([vm.name, str(uptime), resource_group_name, subscription_name])
-    #             elif status == 'PowerState/running':  # check if the vm is running but logs didn't catch it (if running for >90 days)
-    #                 running_vm_data.append([vm.name, '>90 days', resource_group_name, subscription_name])
+                vm_id = vm.id
+                # get vm status, either 'PowerState/running', 'PowerState/deallocating'  or 'PowerState/deallocated'
+                status = compute_client.virtual_machines.instance_view(resource_group_name, vm.name).statuses[1].code
+                uptime = get_vm_uptime(vm_id, monitor_client)
+                if uptime is not None:
+                    uptime = int(uptime * 10) / 10  # shorten to 1 decimal point
+                    running_vm_data.append([vm.name, str(uptime), resource_group_name, subscription_name])
+                elif status == 'PowerState/running':  # check if the vm is running but logs didn't catch it (if running for >90 days)
+                    running_vm_data.append([vm.name, '>90 days', resource_group_name, subscription_name])
 
     if len(running_vm_data) > 0:  # print info if any running vms were found
         print('{:^30s}{:^12s}{:^25s}{:^20s}'.format('Name', 'Uptime (hrs)', 'Resource Group', 'Subscription'))
