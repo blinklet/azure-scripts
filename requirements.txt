@@ -1,2 +1,5 @@
 wheel
 azure-identity
+azure-mgmt-resource
+azure-mgmt-compute
+tabulate
