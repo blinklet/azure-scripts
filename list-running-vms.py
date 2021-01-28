@@ -1,5 +1,7 @@
 """
-List all VMs in your subscriptions in a formatted table
+List all VMs in your subscriptions in a formatted table.
+The columns are: VM name, subscription, resource group, size, location, and status.
+Each row is a unique VM.
 
 You must login to Azure CLI before you run this script:
 $ az login
@@ -15,6 +17,7 @@ from azure.mgmt.resource import SubscriptionClient as SubClient
 from azure.mgmt.resource import ResourceManagementClient as ResourceClient
 from azure.mgmt.compute import ComputeManagementClient as ComputeClient
 from azure.identity import AzureCliCredential
+from azure.identity._exceptions import CredentialUnavailableError,
 from tabulate import tabulate
 
 
@@ -49,9 +52,15 @@ def vmlocation(client, group, vm):
 
 
 def build_vm_list(credentials):
+    ''' 
+    Build a list of all VMs in all the subscriptions visible to the user.
+    The returned list contains nested lists, one header list and one list
+    for each VM. Each nested list contains the VM name, subscription, 
+    resource group, size, location, and status.
+    '''
     headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status']
-    table = list()
-    table.append(headers)
+    returned_list = list()
+    returned_list.append(headers)
 
     subscription_client = SubClient(credentials)
     subscriptions = sublist(subscription_client)
@@ -65,13 +74,13 @@ def build_vm_list(credentials):
                 vm_status = vmstatus(compute_client, resource_group, vm)
                 vm_size = vmsize(compute_client, resource_group, vm)
                 vm_location = vmlocation(compute_client, resource_group, vm)
-                table.append([vm, subscription_name, resource_group, vm_size, vm_location, vm_status])
+                returned_list.append([vm, subscription_name, resource_group, vm_size, vm_location, vm_status])
 
-    return(table)
+    return(returned_list)
 
 
 def sort_by_status(input_list):
-    # Sort the table by the Status field, except for the first row
+    ''' Sort a list by the Status field, except for the first row '''
     new_list = list()
     new_list.append(input_list[0])
     for row in sorted(input_list[1:], key = lambda x: x[5]):
@@ -92,4 +101,4 @@ def vm_table(tablefmt):
 
 
 if __name__ == '__main__':
-    vm_table('pretty')
+    vm_table('pretty')   # Choose one of the formats supported by the tabular library
