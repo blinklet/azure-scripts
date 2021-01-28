@@ -43,7 +43,7 @@ def vmlocation(client, group, vm):
 
 def vmstatus(client, group, vm):
     ''' 
-    Gets the power state of a VM instance. If there is no state to read, returns state ="Unknown".
+    Gets the power state of a VM instance. If there is no state to read, returns state = "Unknown".
     '''
     # Sometimes, the instanceview.statuses list is empty or contains only one element.
     # This occurs when a VM fails to deploy properly but also it seems to
@@ -61,7 +61,7 @@ def vmstatus(client, group, vm):
 def build_vm_list(credentials):
     ''' 
     Build a list of all VMs in all the subscriptions visible to the user.
-    The returned list contains nested lists, one header list and one list
+    The returned list contains nested lists, one header list, and one list
     for each VM. Each nested list contains the VM name, subscription, 
     resource group, size, location, and status.
     '''
