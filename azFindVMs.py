@@ -7,7 +7,7 @@ pip install azure-cli
 
 __author__ = "Ewan Wai"
 
-from azure.common.credentials import get_azure_cli_credentials
+from azure.identity import AzureCliCredential
 from azure.mgmt.resource import SubscriptionClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.compute import ComputeManagementClient
@@ -36,7 +36,11 @@ def find_running_vm(credentials):
             for vm in vms:
                 vm_id = vm.id
                 # get vm status, either 'PowerState/running', 'PowerState/deallocating'  or 'PowerState/deallocated'
-                status = compute_client.virtual_machines.instance_view(resource_group_name, vm.name).statuses[1].code
+                try:
+                    status = compute_client.virtual_machines.instance_view(resource_group_name, vm.name).statuses[1].code
+                except IndexError:
+                    status = "Unknown"
+
                 uptime = get_vm_uptime(vm_id, monitor_client)
                 if uptime is not None:
                     uptime = int(uptime * 10) / 10  # shorten to 1 decimal point
@@ -81,9 +85,5 @@ def get_vm_uptime(vm_id: str, monitor_client: MonitorManagementClient):
     return None  # if for some reason no significant log was found, VM is assumed to not be running
 
 if __name__ == '__main__':
-    try:
-        credentials = get_azure_cli_credentials()[0]  # get credentials
-        find_running_vm(credentials)
-    except Exception as e:
-        print(e)
-
+    credentials = AzureCliCredential() # get credentials
+    find_running_vm(credentials)
