@@ -67,18 +67,23 @@ def get_vm_uptime(vm_id, monitor_client):
     This function written by Ewan Wai (https://www.linkedin.com/in/ewan-wai-7a3905193/)
     '''
     # azure deletes logs that are 90 days old so check from 89 days ago
+    # If you filter using a date older than 89 days, you may see an error: "msrest.exceptions.DeserializationError"
     past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=89)
 
-    # filter = " and ".join(["eventTimestamp ge '{}T00:00:00Z'".format(past_date.date()), "resourceUri eq '"+vm_id+"'"])
     filter = f"eventTimestamp ge '{past_date.date()}T00:00:00Z' and resourceUri eq '{vm_id}'"
     logs = monitor_client.activity_logs.list(filter=filter)
 
     for log in logs:  # iterate through logs from most recent
-        # if the most recent action was a successful start or creation (means the machine is running)
-        if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action'
-              or log.operation_name.value == 'Microsoft.Compute/virtualMachines/write') \
-                and log.status.value == 'Succeeded':
-            
+        # Look for the most recent successful start or creation log (assume VM is running)
+
+        vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+        vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+        succeeded = (log.status.value == 'Succeeded')
+        # if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action'
+        #       or log.operation_name.value == 'Microsoft.Compute/virtualMachines/write') \
+        #         and log.status.value == 'Succeeded':
+        
+        if (vm_started or vm_created) and succeeded:
             start_time = log.event_timestamp
             now = datetime.datetime.now(datetime.timezone.utc)
             uptime = (now - start_time) / datetime.timedelta(hours=1)
