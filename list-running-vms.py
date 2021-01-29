@@ -77,13 +77,13 @@ def get_vm_uptime(vm_id, monitor_client):
         # Look for the most recent successful start or creation log (assume VM is running)
 
         vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
-        vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+        vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
         succeeded = (log.status.value == 'Succeeded')
         # if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action'
         #       or log.operation_name.value == 'Microsoft.Compute/virtualMachines/write') \
         #         and log.status.value == 'Succeeded':
         
-        if (vm_started or vm_created) and succeeded:
+        if (vm_started and succeeded) or (vm_created and succeeded):
             start_time = log.event_timestamp
             now = datetime.datetime.now(datetime.timezone.utc)
             uptime = (now - start_time) / datetime.timedelta(hours=1)
