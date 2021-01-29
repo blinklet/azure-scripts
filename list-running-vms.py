@@ -60,73 +60,41 @@ def vmstatus(client, group, vm):
     return state
 
 
-def vmuptime(credentials, subscription_id, vm_id, vm_status):
-    print(vm_status)
-    if vm_status != "running":
-        vm_uptime = "N/A"
-    else:
-        monitor_client = MonitorClient(credentials, subscription_id)
-        vm_uptime = time_from_vm_logs(vm_id, monitor_client)
-    return vm_uptime
+def get_vm_uptime(vm_id, monitor_client):
+    '''
+    Returns the uptime of an azure VM, using the activity logs, or returns None if it is stopped.
+    Because azure only keeps logs for 90 days, uptime can only be found if running for less than 90 days.
+    This function written by Ewan Wai (https://www.linkedin.com/in/ewan-wai-7a3905193/)
+    '''
+    # azure deletes logs that are 90 days old so check from 89 days ago
+    past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=89)
 
-def found_start_log(log):
-    if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action'
+    # filter = " and ".join(["eventTimestamp ge '{}T00:00:00Z'".format(past_date.date()), "resourceUri eq '"+vm_id+"'"])
+    filter = f"eventTimestamp ge '{past_date.date()}T00:00:00Z' and resourceUri eq '{vm_id}'"
+    logs = monitor_client.activity_logs.list(filter=filter)
+
+    for log in logs:  # iterate through logs from most recent
+        # if the most recent action was a successful start or creation (means the machine is running)
+        if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action'
               or log.operation_name.value == 'Microsoft.Compute/virtualMachines/write') \
                 and log.status.value == 'Succeeded':
-        return True
-    else:
-        return False
+            
+            start_time = log.event_timestamp
+            now = datetime.datetime.now(datetime.timezone.utc)
+            uptime = (now - start_time) / datetime.timedelta(hours=1)
 
+            uptime_days = int(uptime) // 24
+            uptime_hours = int(uptime) % 24
 
-def time_from_vm_logs(vm_id, monitor_client):
-    '''
-    Returns the uptime of a running azure VM, using the activity logs, or returns None if
-    VM was running for longer than 90 days. Azure only keeps logs for 90 days so uptime can 
-    only be found if running for less than 90 days.
-    This function was written by Ewan Wai.
-    '''
-    # If you filter on a start date older than 89 days, Azure will not accept the filter.
-    # You will get a "deserialization error" if the filter is not set correctly.
-    # See: https://docs.microsoft.com/en-us/rest/api/monitor/activitylogs/list
-    start_date = datetime.datetime.now() - datetime.timedelta(days=89)
-    date_stamp = start_date.date()
-
-    filter = f"eventTimestamp ge '{date_stamp}T00:00:00Z' and resourceUri eq '{vm_id}'"
-    # filter = " and ".join(["eventTimestamp ge '{}T00:00:00Z'".format(start_date.date()), "resourceUri eq '"+vm_id+"'"])
-    print(filter)
-
-    logs = monitor_client.activity_logs.list(filter=filter)
-    print("type =", type(logs))
-    print(dir(logs))
-    # print("next = ", logs.next())
-    print("page:", logs.by_page())
-    print('OK1')
-
-    # iterate through logs from most recent. Look for most recent successful start or creation.
-    for log in logs:  
-        x = found_start_log(log)
-        print("boolean = ", x)
-        if x:
-            print('Found start Log')
-            now = datetime.datetime.now(datetime.timezone.utc)  # Azure log is in UTC timezone
-            uptime = int((now - log.event_timestamp) / datetime.timedelta(hours=1)) 
-            uptime_days = uptime // 24
-            print(uptime_days)
-            uptime_hours = uptime % 24
-            print(uptime_hours)
             if uptime_days == 0:
-                print("days = 0")
-                return str(uptime_hours) + ' hours'
+                new_uptime = str(uptime_hours) + ' hours'
             else:
-                print("days > 0 plus hours")
-                return str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
-        else:
-            # if no start or creation log found, VM is assumed to be running more than 90 days
-            print("returning 90 days")
-            return "> 90 days"
-    # In some cases, there may be nothing in the logs. In those cases, assume VM is runing nore than 90 days
-    print("No logs")
-    return "No logs"  
+                new_uptime = str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
+
+            return new_uptime
+    # Some VMs' logs are not iterable and the for loop does not run for them. Catch this error
+    # by returning a message if the for loop is not executed. This may be an Azure problem.
+    return "Log error" 
 
 
 def build_vm_list(credentials):
@@ -148,12 +116,16 @@ def build_vm_list(credentials):
         resource_groups = grouplist(resource_client)
         for resource_group in resource_groups:
             compute_client = ComputeClient(credentials, subscription_id)
+            monitor_client = MonitorClient(credentials, subscription_id)
             vms = vmlist(compute_client, resource_group)
             for vm_name, vm_id in vms:
                 vm_status = vmstatus(compute_client, resource_group, vm_name)
                 vm_size = vmsize(compute_client, resource_group, vm_name)
                 vm_location = vmlocation(compute_client, resource_group, vm_name)
-                vm_uptime = vmuptime(credentials, subscription_id, vm_id, vm_status)
+                if vm_status == "running":
+                    vm_uptime = get_vm_uptime(vm_id, monitor_client)
+                else:
+                    vm_uptime = "n/a"
                 returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_uptime])
 
     return returned_list
