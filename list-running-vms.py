@@ -53,14 +53,13 @@ def vmstatus(client, group, vm):
     try:
         results = client.virtual_machines.instance_view(group, vm).statuses[1].code
     except IndexError:
-        return "Unknown"
+        return 'Unknown'
     # Status code is always a two-part code, divided by a forward-slash.
     # The first is usually "PowerState" and the second is "running" or "deallocated".
     power, state = results.split('/')  
     return state
 
-def calculate_uptime(log):
-    start_time = log.event_timestamp
+def calculate_uptime(start_time):
     now = datetime.datetime.now(datetime.timezone.utc)
     uptime = (now - start_time) / datetime.timedelta(hours=1)
 
@@ -77,72 +76,43 @@ def calculate_uptime(log):
 
 def get_vm_uptime(vm_id, monitor_client):
     '''
-    Returns the uptime of an azure VM, using the activity logs, or returns None if it is stopped.
-    Because azure only keeps logs for 90 days, uptime can only be found if running for less than 90 days.
-    This function written by Ewan Wai (https://www.linkedin.com/in/ewan-wai-7a3905193/)
+    Returns the uptime of a running azure VM, using the activity logs.
+    Gathers 89 days of the VM's activity logs and looks for the most recent
+    successful start or creation log. If none is found, or if the VM has no
+    activity logs in the past 89 days, the VM must have been running for
+    90 or more days and this function returns the string ">90 days".
     '''
-    # azure deletes logs that are 90 days old so check from 89 days ago
-    # If you filter using a date older than 89 days, you may see an error: "msrest.exceptions.DeserializationError"
+    
+    # If you filter using a date older than 89 days, you may see 
+    # an error message like: "msrest.exceptions.DeserializationError"
     past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=89)
 
-    
     filter = " and ".join([
         f"eventTimestamp ge '{past_date.date()}T00:00:00Z'",
         f"resourceUri eq '{vm_id}'"
     ])
     
-    select = ",".join([
-        "operationName",
-        "eventTimestamp",
-        "status"
+    select = ','.join([
+        'operationName',
+        'eventTimestamp',
+        'status'
     ])
-
-    print(filter)
-    print()
-    print(select)
-    print()
 
     logs = monitor_client.activity_logs.list( filter=filter, select=select )
 
     for log in logs:
-        print(", ".join([
-            log.event_name.value,
-            log.operation_name.value,
-            log.event_timestamp.isoformat('T'),
-            log.status.value
-        ]))
-
-    # log_ok = False
-    # start_found = False
-
-    # for log in logs:
-    #     log_ok = True
-    #     # Look for the most recent successful start or creation log (assume VM is running)
-    #     vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
-    #     vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
-    #     succeeded = (log.status.value == 'Succeeded')
+        # Look for the most recent successful start or creation log (assume VM is running)
+        vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+        vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
+        succeeded = (log.status.value == 'Succeeded')
         
-    #     if (vm_started or vm_created) and succeeded:
-    #         uptime = calculate_uptime(log)
-    #         start_found = True
-    #         break 
+        if (vm_started or vm_created) and succeeded:
+            return calculate_uptime(log.event_timestamp)
 
-    # # If the loop completes without finding a successful VM start orcreate log,
-    # # Assume VM has been running for more than 90 days.
-
-    # # Some VMs' logs are not iterable and the for loop does not run for them so
-    # # test that the loop ran at least once by setting log_ok boolean. 
-
-    # if log_ok and start_found:
-    #     return uptime
-    # elif log_ok and not start_found:
-    #     return ">90 days"
-    # elif not log_ok and not start_found:
-    #     return "Log problem"
-    # else:
-    #     return "No condition matched" 
-
-    return "Some other error"
+    # If the loop completes without finding a successful VM start or create log,
+    # or if the logs iterator is empty (so loop does not execute), 
+    # VM has been running for more than 90 days.
+    return '>90 days'
 
 def build_vm_list(credentials):
     ''' 
@@ -169,10 +139,10 @@ def build_vm_list(credentials):
                 vm_status = vmstatus(compute_client, resource_group, vm_name)
                 vm_size = vmsize(compute_client, resource_group, vm_name)
                 vm_location = vmlocation(compute_client, resource_group, vm_name)
-                if vm_status == "running":
+                if vm_status == 'running':
                     vm_uptime = get_vm_uptime(vm_id, monitor_client)
                 else:
-                    vm_uptime = "n/a"
+                    vm_uptime = 'n/a'
                 returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_uptime])
 
     return returned_list
