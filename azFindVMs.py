@@ -67,6 +67,8 @@ def get_vm_uptime(vm_id: str, monitor_client: MonitorManagementClient):
     filter = " and ".join(["eventTimestamp ge '{}T00:00:00Z'".format(past_date.date()), "resourceUri eq '"+vm_id+"'"])
     logs = monitor_client.activity_logs.list(filter=filter)
 
+    print(logs.next())
+    
     for log in logs:  # iterate through logs from most recent
         if log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action'\
                 and log.status.value == 'Succeeded':
