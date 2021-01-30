@@ -49,7 +49,7 @@ def vmstatus(client, group, vm):
     '''
     # Sometimes, the instanceview.statuses list is empty or contains only one element.
     # This occurs when a VM fails to deploy properly but also it seems to
-    # occasionally for no obvious reason. We check for it and move on.
+    # occasionally occur for no obvious reason. We check for it and move on.
     try:
         results = client.virtual_machines.instance_view(group, vm).statuses[1].code
     except IndexError:
@@ -143,7 +143,6 @@ def build_vm_list(credentials):
         resource_client = ResourceClient(credentials, subscription_id)
         compute_client = ComputeClient(credentials, subscription_id)
         monitor_client = MonitorClient(credentials, subscription_id)
-
         resource_groups = grouplist(resource_client)
 
         for resource_group in resource_groups:
@@ -171,16 +170,15 @@ def build_vm_list(credentials):
 
 def sort_by_column(input_list, sort_keys):
     ''' Sort a list by columns, except for the first row '''
-
-    list_to_sort = list(input_list) # make copy of input list
-
-    x = []
-    for column in sort_keys:
-        x.append(list_to_sort[0].index(column))
     
-    print(x)
+    headers = input_list[0]
+    list_to_sort = input_list[1:]
 
-    list_to_sort[1:].sort(key=itemgetter(*x))
+    x = [headers.index(column) for column in sort_keys]
+
+    list_to_sort.sort(key=itemgetter(*x))
+    list_to_sort.insert(0, headers)
+
     return list_to_sort
 
 
@@ -189,7 +187,7 @@ def print_table(input_list, frmt):
     print(formatted_table)
 
 
-def vm_table(tablefmt,sort_keys=['Status']):
+def vm_table(tablefmt,sort_keys):
     credentials = AzureCliCredential()
     vm_list = build_vm_list(credentials)
     if len(vm_list) > 1:
@@ -200,4 +198,6 @@ def vm_table(tablefmt,sort_keys=['Status']):
 
 
 if __name__ == '__main__':
-    vm_table('pretty',sort_keys=['Status'])   # 'pretty' is one of the formats supported by the tabular library
+    table_format = 'pretty'
+    sort_keys = ['Status','ResourceGroup']
+    vm_table(table_format, sort_keys)   # 'pretty' is one of the formats supported by the tabular library
