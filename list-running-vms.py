@@ -119,6 +119,8 @@ def get_vm_time(vm_id, monitor_client, switch='up'):
     # If the loop completes without finding a successful VM start or create log,
     # or if the logs iterator is empty (so loop does not execute), 
     # VM has been running for more than 90 days.
+    # TODO: I need to learm more about the PagedItem class.
+    #       Are they based on the asynchronous iterator, or generator?
     return '>90 days'
 
 
@@ -136,17 +138,23 @@ def build_vm_list(credentials):
 
     subscription_client = SubClient(credentials)
     subscriptions = sublist(subscription_client)
+
     for subscription_id, subscription_name in subscriptions:
         resource_client = ResourceClient(credentials, subscription_id)
+        compute_client = ComputeClient(credentials, subscription_id)
+        monitor_client = MonitorClient(credentials, subscription_id)
+
         resource_groups = grouplist(resource_client)
+
         for resource_group in resource_groups:
-            compute_client = ComputeClient(credentials, subscription_id)
-            monitor_client = MonitorClient(credentials, subscription_id)
             vms = vmlist(compute_client, resource_group)
+
             for vm_name, vm_id in vms:
+
                 vm_status = vmstatus(compute_client, resource_group, vm_name)
                 vm_size = vmsize(compute_client, resource_group, vm_name)
                 vm_location = vmlocation(compute_client, resource_group, vm_name)
+
                 if vm_status == 'running':
                     vm_time = get_vm_time(vm_id, monitor_client, switch="up")
                 elif vm_status == 'Unknown':
@@ -155,23 +163,25 @@ def build_vm_list(credentials):
                     vm_time = get_vm_time(vm_id, monitor_client, switch="down")
                 else:
                     vm_time = '???'  # if unexpected result
+
                 returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_time])
 
     return returned_list
 
 
-def sort_by_column(input_list, column='Status'):
-    ''' Sort a list by the Status field, except for the first row '''
+def sort_by_column(input_list, sort_keys):
+    ''' Sort a list by columns, except for the first row '''
 
-    # To keep this function flexible, search for the index of the
-    # 'Status' column in the header row so its index is not hard-coded.
-    x = input_list[0].index(column)
+    list_to_sort = list(input_list) # make copy of input list
 
-    new_list = list()
-    new_list.append(input_list[0])
-    for row in sorted(input_list[1:], key=itemgetter(x)):
-        new_list.append(row)
-    return new_list
+    x = []
+    for column in sort_keys:
+        x.append(list_to_sort[0].index(column))
+    
+    print(x)
+
+    list_to_sort[1:].sort(key=itemgetter(*x))
+    return list_to_sort
 
 
 def print_table(input_list, frmt):
@@ -179,15 +189,15 @@ def print_table(input_list, frmt):
     print(formatted_table)
 
 
-def vm_table(tablefmt,column):
+def vm_table(tablefmt,sort_keys=['Status']):
     credentials = AzureCliCredential()
     vm_list = build_vm_list(credentials)
     if len(vm_list) > 1:
-        sorted_list = sort_by_column(sort_by_column(vm_list, 'Status'), column)
+        sorted_list = sort_by_column(vm_list,sort_keys)
         print_table(sorted_list, tablefmt)
     else:
         print("No VMs found")
 
 
 if __name__ == '__main__':
-    vm_table('pretty','ResourceGroup')   # 'pretty' is one of the formats supported by the tabular library
+    vm_table('pretty',sort_keys=['Status'])   # 'pretty' is one of the formats supported by the tabular library
