@@ -6,11 +6,9 @@ Each row is a unique VM.
 You must login to Azure CLI before you run this script:
 $ az login
 
-Usage:
-$ python listvms.py -f|--format <format>
-
 Prerequisites:
-(env) $ pip install azure-mgmt-resource azure-mgmt-compute azure-identity azure-cli-core tabulate
+(env) $ pip install azure-mgmt-resource azure-mgmt-compute azure-identity \
+        azure-cli-core tabulate azure-mgmt-monitor
 '''
 
 from azure.mgmt.resource import SubscriptionClient as SubClient
@@ -18,7 +16,7 @@ from azure.mgmt.resource import ResourceManagementClient as ResourceClient
 from azure.mgmt.compute import ComputeManagementClient as ComputeClient
 from azure.mgmt.monitor import MonitorManagementClient as MonitorClient
 from azure.identity import AzureCliCredential
-import datetime
+from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from tabulate import tabulate
 
@@ -54,14 +52,16 @@ def vmstatus(client, group, vm):
         results = client.virtual_machines.instance_view(group, vm).statuses[1].code
     except IndexError:
         return 'Unknown'
+
     # Status code is always a two-part code, divided by a forward-slash.
     # The first is usually "PowerState" and the second is "running" or "deallocated".
     power, state = results.split('/')  
     return state
 
+
 def diff_time(start_time):
-    now = datetime.datetime.now(datetime.timezone.utc)
-    uptime = (now - start_time) / datetime.timedelta(hours=1)
+    now = datetime.now(timezone.utc)
+    uptime = (now - start_time) / timedelta(hours=1)
 
     uptime_days = int(uptime) // 24
     uptime_hours = int(uptime) % 24
@@ -80,7 +80,7 @@ def get_vm_time(vm_id, monitor_client, switch='up'):
     '''
     # If you filter using a date older than 89 days, you may see 
     # an error message like: "msrest.exceptions.DeserializationError"
-    past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=89)
+    past_date = datetime.now(timezone.utc) - timedelta(days=89)
 
     filter = " and ".join([
         f"eventTimestamp ge '{past_date.date()}T00:00:00Z'",
@@ -93,7 +93,7 @@ def get_vm_time(vm_id, monitor_client, switch='up'):
         'status'
     ])
 
-    logs = monitor_client.activity_logs.list( filter=filter, select=select )
+    logs = monitor_client.activity_logs.list(filter=filter, select=select)
 
     for log in logs:
         if switch == 'down':
@@ -119,8 +119,6 @@ def get_vm_time(vm_id, monitor_client, switch='up'):
     # If the loop completes without finding a successful VM start or create log,
     # or if the logs iterator is empty (so loop does not execute), 
     # VM has been running for more than 90 days.
-    # TODO: I need to learm more about the PagedItem class.
-    #       Are they based on the asynchronous iterator, or generator?
     return '>90 days'
 
 
@@ -156,14 +154,22 @@ def build_vm_list(credentials):
 
                 if vm_status == 'running':
                     vm_time = get_vm_time(vm_id, monitor_client, switch="up")
-                elif vm_status == 'Unknown':
-                    vm_time = 'Unknown'
                 elif vm_status == "deallocated":
                     vm_time = get_vm_time(vm_id, monitor_client, switch="down")
+                elif vm_status == 'Unknown':
+                    vm_time = 'Unknown'
                 else:
                     vm_time = '???'  # if unexpected result
 
-                returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_time])
+                returned_list.append([
+                    vm_name, 
+                    subscription_name, 
+                    resource_group, 
+                    vm_size, 
+                    vm_location, 
+                    vm_status, 
+                    vm_time
+                ])
 
     return returned_list
 
@@ -197,7 +203,8 @@ def vm_table(tablefmt,sort_keys):
         print("No VMs found")
 
 
+
 if __name__ == '__main__':
     table_format = 'pretty'
-    sort_keys = ['Status','ResourceGroup']
+    sort_keys = ['Status','ResourceGroup','Size']
     vm_table(table_format, sort_keys)   # 'pretty' is one of the formats supported by the tabular library
