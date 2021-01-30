@@ -59,7 +59,7 @@ def vmstatus(client, group, vm):
     power, state = results.split('/')  
     return state
 
-def calculate_uptime(start_time):
+def diff_time(start_time):
     now = datetime.datetime.now(datetime.timezone.utc)
     uptime = (now - start_time) / datetime.timedelta(hours=1)
 
@@ -74,15 +74,10 @@ def calculate_uptime(start_time):
     return uptime
 
 
-def get_vm_uptime(vm_id, monitor_client):
+def get_vm_time(vm_id, monitor_client, switch='up'):
     '''
-    Returns the uptime of a running azure VM, using the activity logs.
-    Gathers 89 days of the VM's activity logs and looks for the most recent
-    successful start or creation log. If none is found, or if the VM has no
-    activity logs in the past 89 days, the VM must have been running for
-    90 or more days and this function returns the string ">90 days".
+    Similiar to get_uptime function, but looks for most recent shutdown log
     '''
-    
     # If you filter using a date older than 89 days, you may see 
     # an error message like: "msrest.exceptions.DeserializationError"
     past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=89)
@@ -101,18 +96,31 @@ def get_vm_uptime(vm_id, monitor_client):
     logs = monitor_client.activity_logs.list( filter=filter, select=select )
 
     for log in logs:
-        # Look for the most recent successful start or creation log (assume VM is running)
-        vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
-        vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
-        succeeded = (log.status.value == 'Succeeded')
-        
-        if (vm_started or vm_created) and succeeded:
-            return calculate_uptime(log.event_timestamp)
+        if switch == 'down':
+            # Look for the most recent successful deallocation log
+            vm_deallocated = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action')
+            succeeded = (log.status.value == 'Succeeded')
+            
+            if vm_deallocated and succeeded:
+                return diff_time(log.event_timestamp)
+
+        elif switch == 'up':
+            # Look for the most recent successful start or creation log
+            vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+            vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
+            succeeded = (log.status.value == 'Succeeded')
+            
+            if (vm_started or vm_created) and succeeded:
+                return diff_time(log.event_timestamp)
+
+        else:
+            return "invalid switch"  # to catch programming errors 
 
     # If the loop completes without finding a successful VM start or create log,
     # or if the logs iterator is empty (so loop does not execute), 
     # VM has been running for more than 90 days.
     return '>90 days'
+
 
 def build_vm_list(credentials):
     ''' 
@@ -140,10 +148,14 @@ def build_vm_list(credentials):
                 vm_size = vmsize(compute_client, resource_group, vm_name)
                 vm_location = vmlocation(compute_client, resource_group, vm_name)
                 if vm_status == 'running':
-                    vm_uptime = get_vm_uptime(vm_id, monitor_client)
+                    vm_time = get_vm_time(vm_id, monitor_client, switch="up")
+                elif vm_status == 'Unknown':
+                    vm_time = 'Unknown'
+                elif vm_status == "deallocated":
+                    vm_time = get_vm_time(vm_id, monitor_client, switch="down")
                 else:
-                    vm_uptime = 'n/a'
-                returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_uptime])
+                    vm_time = '???'  # if unexpected result
+                returned_list.append([vm_name, subscription_name, resource_group, vm_size, vm_location, vm_status, vm_time])
 
     return returned_list
 
@@ -170,9 +182,12 @@ def print_table(input_list, frmt):
 def vm_table(tablefmt,column):
     credentials = AzureCliCredential()
     vm_list = build_vm_list(credentials)
-    sorted_list = sort_by_column(vm_list, column)
-    print_table(sorted_list, tablefmt)
+    if len(vm_list) > 1:
+        sorted_list = sort_by_column(sort_by_column(vm_list, 'Status'), column)
+        print_table(sorted_list, tablefmt)
+    else:
+        print("No VMs found")
 
 
 if __name__ == '__main__':
-    vm_table('pretty','Status')   # 'pretty' is one of the formats supported by the tabular library
+    vm_table('pretty','ResourceGroup')   # 'pretty' is one of the formats supported by the tabular library
