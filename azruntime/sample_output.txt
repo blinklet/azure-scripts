@@ -16,5 +16,5 @@
 | app-backend  |    BL-Prod   |    dev-040    | Standard_D4s_v3  | northcentralus |   running   |     >90 days      |
 |    applab    |    BL-Prod   |    prod-019   | Standard_E20s_v3 | northcentralus |   running   |  3 days, 1 hours  |
 +--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
-
+(env) $ 
 
