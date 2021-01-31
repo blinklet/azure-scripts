@@ -1,0 +1,20 @@
+
+
+
+(env) $ python -m azruntime 
++--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
+|    VM name   | Subscription | ResourceGroup |       Size       |    Location    |   Status    |      Uptime       |
++--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
+|    vpn2021   |    BL-Dev    |    dev-002    | Standard_E20s_v3 |  northeurope   | deallocated |  2 days, 2 hours  |
+|   routerlab  |    BL-Dev    |    dev-002    | Standard_E20s_v3 |  northeurope   | deallocated | 1 days, 15 hours  |
+|    labtest   |    BL-Dev    |    dev-004    | Standard_D16s_v3 | northcentralus | deallocated | 46 days, 19 hours |
+|     lab02    |    BL-Prod   |    prod-007   | Standard_E20s_v3 |  northeurope   | deallocated | 8 days, 23 hours  |
+|     lab01    |    BL-Prod   |    prod-007   | Standard_E20s_v3 |   westeurope   | deallocated | 16 days, 1 hours  |
+|    optical   |    BL-Dev    |    dev-032    | Standard_D16s_v3 | southeastasia  |   running   | 15 days, 12 hours |
+|    vpnsec    |    BL-Dev    |    dev-039    | Standard_E20s_v3 |  northeurope   |   running   | 2 days, 23 hours  |
+| app-frontend |    BL-Prod   |    dev-040    | Standard_D2s_v3  | northcentralus |   running   | 20 days, 1 hours  |
+| app-backend  |    BL-Prod   |    dev-040    | Standard_D4s_v3  | northcentralus |   running   |     >90 days      |
+|    applab    |    BL-Prod   |    prod-019   | Standard_E20s_v3 | northcentralus |   running   |  3 days, 1 hours  |
++--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
+
+
