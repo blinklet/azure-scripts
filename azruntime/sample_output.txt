@@ -3,7 +3,7 @@
 
 (env) $ python -m azruntime 
 +--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
-|    VM name   | Subscription | ResourceGroup |       Size       |    Location    |   Status    |      Uptime       |
+|    VM name   | Subscription | ResourceGroup |       Size       |    Location    |   Status    |    TimeInState    |
 +--------------+--------------+---------------+------------------+----------------+-------------+-------------------+
 |    vpn2021   |    BL-Dev    |    dev-002    | Standard_E20s_v3 |  northeurope   | deallocated |  2 days, 2 hours  |
 |   routerlab  |    BL-Dev    |    dev-002    | Standard_E20s_v3 |  northeurope   | deallocated | 1 days, 15 hours  |

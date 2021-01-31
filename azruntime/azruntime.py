@@ -129,7 +129,7 @@ def build_vm_list(credentials):
     for each VM. Each nested list contains the VM name, subscription, 
     resource group, size, location, status, and uptime.
     '''
-    headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status','Uptime']
+    headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status','TimeInState']
 
     returned_list = list()
     returned_list.append(headers)
