@@ -2,4 +2,6 @@ wheel
 azure-identity
 azure-mgmt-resource
 azure-mgmt-compute
+azure-mgmt-monitor
+azure-core-cli
 tabulate
