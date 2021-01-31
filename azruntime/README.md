@@ -1,4 +1,4 @@
-#AzRuntime#
+# AzRuntime #
 
 A simple script that lists all VMs running in your subscriptions and displays either:
 
