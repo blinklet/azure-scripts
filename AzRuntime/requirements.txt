@@ -3,5 +3,5 @@ azure-identity
 azure-mgmt-resource
 azure-mgmt-compute
 azure-mgmt-monitor
-azure-core-cli
+azure-cli-core
 tabulate

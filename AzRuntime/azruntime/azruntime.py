@@ -202,9 +202,11 @@ def vm_table(tablefmt,sort_keys):
     else:
         print("No VMs found")
 
-
-
-if __name__ == '__main__':
+def main():
     table_format = 'pretty'
     sort_keys = ['Status','ResourceGroup','Size']
     vm_table(table_format, sort_keys)   # 'pretty' is one of the formats supported by the tabular library
+
+if __name__ == '__main__':
+    main()
+    
