@@ -1,3 +1,3 @@
-from azruntime.azruntime import main
+from azruntime.azruntime import vm_table
 
-main()
+print(vm_table())
