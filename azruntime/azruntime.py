@@ -15,7 +15,7 @@ from azure.mgmt.resource import SubscriptionClient as SubClient
 from azure.mgmt.resource import ResourceManagementClient as ResourceClient
 from azure.mgmt.compute import ComputeManagementClient as ComputeClient
 from azure.mgmt.monitor import MonitorManagementClient as MonitorClient
-from azure.identity import AzureCliCredential
+from azure.identity import DefaultAzureCredential
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from tabulate import tabulate
@@ -174,39 +174,36 @@ def build_vm_list(credentials):
     return returned_list
 
 
-def sort_by_column(input_list, sort_keys):
+def sort_by_column(input_list, *sort_keys):
     ''' Sort a list by columns, except for the first row '''
     
     headers = input_list[0]
     list_to_sort = input_list[1:]
-
     x = [headers.index(column) for column in sort_keys]
 
     list_to_sort.sort(key=itemgetter(*x))
     list_to_sort.insert(0, headers)
-
     return list_to_sort
 
 
-def print_table(input_list, frmt):
-    formatted_table = tabulate(input_list, headers='firstrow', tablefmt=frmt)
-    print(formatted_table)
-
-
-def vm_table(tablefmt,sort_keys):
-    credentials = AzureCliCredential()
+def vm_table():
+    credentials = DefaultAzureCredential(
+        exclude_environment_credential = True,
+        exclude_managed_identity_credential = True,
+        exclude_shared_token_cache_credential = True,
+        exclude_visual_studio_code_credential = True,
+        exclude_interactive_browser_credential = False
+    )
     vm_list = build_vm_list(credentials)
-    if len(vm_list) > 1:
-        sorted_list = sort_by_column(vm_list,sort_keys)
-        print_table(sorted_list, tablefmt)
-    else:
-        print("No VMs found")
 
-def main():
-    table_format = 'pretty'
-    sort_keys = ['Status','ResourceGroup','Size']
-    vm_table(table_format, sort_keys)   # 'pretty' is one of the formats supported by the tabular library
+    if len(vm_list) > 1:
+        sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
+        formatted_table = tabulate(sorted_list, headers='firstrow', tablefmt="pretty")
+        return formatted_table
+    else:
+        return "No VMs found"
+
 
 if __name__ == '__main__':
-    main()
+    print(vm_table())
     
