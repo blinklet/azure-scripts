@@ -5,7 +5,7 @@ setup(
     url='https://github.com/blinklet/azure-scripts/azruntime',
     author='Brian Linkletter',
     author_email='mail@brianlinkletter.ca',
-    packages=['.'],
+    packages=['azruntime'],
     install_requires=[
         'wheel',
         'azure-identity',
@@ -19,4 +19,7 @@ setup(
     license='GPLv3',
     description='Print a list of all running VMs in your subscriptions. Use must be logged into Azure CLI.',
     long_description=open('README.md').read(),
+    entry_points = {
+        'console_scripts': ['azruntime=azruntime.azruntime:main'],
+    },
 )

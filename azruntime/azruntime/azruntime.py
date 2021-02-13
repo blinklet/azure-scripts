@@ -203,7 +203,9 @@ def vm_table():
     else:
         return "No VMs found"
 
+def main():
+    print(vm_table())
 
 if __name__ == '__main__':
-    print(vm_table())
+    main()
     
