@@ -17,7 +17,7 @@ setup(
     ],
     version='0.4',
     license='GPLv3',
-    description='Print a list of all running VMs in your subscriptions. Use must be logged into Azure CLI.',
+    description='Print a list of all running VMs in your subscriptions.',
     long_description=open('README.md').read(),
     entry_points = {
         'console_scripts': ['azruntime=azruntime.azruntime:main'],
