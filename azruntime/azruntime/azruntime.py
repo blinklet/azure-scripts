@@ -196,7 +196,7 @@ def vm_table():
     )
     vm_list = build_vm_list(credentials)
 
-    if len(vm_list) > 1:  # An empty vm_list atill has a header row
+    if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
         formatted_table = tabulate(sorted_list, headers='firstrow', tablefmt="pretty")
         return formatted_table
