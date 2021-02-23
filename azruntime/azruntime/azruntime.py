@@ -199,13 +199,21 @@ def vm_table():
 
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
-        formatted_table = tabulate(sorted_list, headers='firstrow', tablefmt="pretty")
-        return formatted_table
+
+        table = Table(show_header=True, header_style="bold magenta", show_lines=True)
+        for x in sorted_list[0]:
+            table.add_column(x)
+
+        for x in sorted_list[1:]:
+            table.add_row(*x)
+
+        return table
     else:
         return "No VMs found"
 
 def main():
-    print(vm_table())
+    console = Console()
+    console.print(vm_table())
 
 if __name__ == '__main__':
     main()
