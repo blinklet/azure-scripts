@@ -13,7 +13,7 @@ setup(
         'azure-mgmt-compute',
         'azure-mgmt-monitor',
         'azure-cli-core',
-        'tabulate'
+        'rich'
     ],
     version='0.4',
     license='GPLv3',
