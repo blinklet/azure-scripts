@@ -8,7 +8,7 @@ $ az login
 
 Prerequisites:
 (env) $ pip install azure-mgmt-resource azure-mgmt-compute azure-identity \
-        azure-cli-core tabulate azure-mgmt-monitor
+        azure-cli-core rich azure-mgmt-monitor
 '''
 
 from azure.mgmt.resource import SubscriptionClient as SubClient
@@ -18,7 +18,8 @@ from azure.mgmt.monitor import MonitorManagementClient as MonitorClient
 from azure.identity import DefaultAzureCredential
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
-from tabulate import tabulate
+from rich.console import Console
+from rich.table import Table
 
 
 def sublist(client):
