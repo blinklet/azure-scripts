@@ -15,7 +15,7 @@ setup(
         'azure-cli-core',
         'rich'
     ],
-    version='0.4',
+    version='0.5',
     license='GPLv3',
     description='Print a list of all running VMs in your subscriptions.',
     long_description=open('README.md').read(),
