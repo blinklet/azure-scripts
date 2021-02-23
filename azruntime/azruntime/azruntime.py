@@ -201,9 +201,12 @@ def vm_table():
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
 
         table = Table(show_header=True, header_style="bold magenta", show_lines=True)
-        for x in sorted_list[0]:
+        # the column headers are in the first row of the list
+        for x in sorted_list[0]: 
             table.add_column(x)
 
+        # Each row is a nested list.
+        # Unpack each nested list into arguments for the add_row function
         for x in sorted_list[1:]:
             table.add_row(*x)
 
