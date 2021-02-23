@@ -1,14 +1,15 @@
 '''
 List all VMs in your subscriptions in a formatted table.
-The columns are: VM name, subscription, resource group, size, location, and status.
-Each row is a unique VM.
+The columns are: VM name, subscription, resource group, size, 
+location, and status. Each row is a unique VM.
 
 You must login to Azure CLI before you run this script:
 $ az login
 
 Prerequisites:
-(env) $ pip install azure-mgmt-resource azure-mgmt-compute azure-identity \
-        azure-cli-core rich azure-mgmt-monitor
+(env) $ pip install azure-mgmt-resource azure-mgmt-compute \
+        azure-identity azure-cli-core rich azure-mgmt-monitor \
+        rich
 '''
 
 from azure.mgmt.resource import SubscriptionClient as SubClient
@@ -44,7 +45,8 @@ def vmlocation(client, group, vm):
 
 def vmstatus(client, group, vm):
     ''' 
-    Gets the power state of a VM instance. If there is no state to read, returns state = "Unknown".
+    Returns the power state of a VM instance. If there is no state to 
+    read, returns state = "Unknown".
     '''
     # Sometimes, the instanceview.statuses list is empty or contains only one element.
     # This occurs when a VM fails to deploy properly but also it seems to
@@ -60,24 +62,58 @@ def vmstatus(client, group, vm):
     return state
 
 
-def diff_time(start_time):
+def diff_time(start_time, vm_status):
+    """
+    diff_time function calculates the time difference between the 
+    start_time parameter and the present time. It returns a tuple. 
+    The first item is string like '2 days, 4 hours' and the second 
+    item is a string for the style argument used to style the row. 
+    We use different styles to running highlight VMs that have been 
+    running too long, or deallocated VMs that are too old.
+    """
     now = datetime.now(timezone.utc)
     uptime = (now - start_time) / timedelta(hours=1)
-
+    uptime_string = ""
+    style_tag = ""
+    
     uptime_days = int(uptime) // 24
     uptime_hours = int(uptime) % 24
 
-    if uptime_days == 0:
-        uptime = str(uptime_hours) + ' hours'
+    # set color for row style
+    if vm_status == "running":
+        if uptime_days == 0:
+            style_tag = "dark_sea_green4"
+        elif uptime_days == 1:
+            style_tag = "gold1"
+        elif uptime_days == 2:
+            style_tag = "dark_orange"
+        elif uptime_days >= 3:
+             style_tag = "orange_red1"
+    elif vm_status == "deallocated":
+        if uptime_days < 14:
+            style_tag = "dark_sea_green4 dim"
+        elif uptime_days >= 14 and uptime_days < 28:
+            style_tag = "gold1 dim"
+        elif uptime_days > 28:
+            style_tag = "dark_orange dim"
     else:
-        uptime = str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
+        raise ValueError("vm_status is not expected value")
 
-    return uptime
+    # build string to return
+    if uptime_days == 0:
+        uptime_string = str(uptime_hours) + ' hours'
+    else:
+        uptime_string = str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
+
+    return uptime_string, style_tag
 
 
-def get_vm_time(vm_id, monitor_client, switch='up'):
+def get_vm_time(vm_id, monitor_client, vm_status='running'):
     '''
-    Similiar to get_uptime function, but looks for most recent shutdown log
+    Looks for most recent startup or shutdown log and returns a tuple. 
+    First returned item is the time delta and the second returned item 
+    is a style that another function uses to set the colors in the 
+    output table.
     '''
     # If you filter using a date older than 89 days, you may see 
     # an error message like: "msrest.exceptions.DeserializationError"
@@ -97,30 +133,33 @@ def get_vm_time(vm_id, monitor_client, switch='up'):
     logs = monitor_client.activity_logs.list(filter=filter, select=select)
 
     for log in logs:
-        if switch == 'down':
+        if vm_status == 'deallocated':
             # Look for the most recent successful deallocation log
             vm_deallocated = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action')
             succeeded = (log.status.value == 'Succeeded')
             
             if vm_deallocated and succeeded:
-                return diff_time(log.event_timestamp)
+                return diff_time(log.event_timestamp, vm_status)
 
-        elif switch == 'up':
+        elif vm_status == 'running':
             # Look for the most recent successful start or creation log
             vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
             vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
             succeeded = (log.status.value == 'Succeeded')
             
             if (vm_started or vm_created) and succeeded:
-                return diff_time(log.event_timestamp)
+                return diff_time(log.event_timestamp, vm_status)
 
         else:
-            return "invalid switch"  # to catch programming errors 
+            return "invalid vm_status", "blue"  # to catch programming errors 
 
     # If the loop completes without finding a successful VM start or create log,
     # or if the logs iterator is empty (so loop does not execute), 
     # VM has been running for more than 90 days.
-    return '>90 days'
+    if vm_status == "running":
+        return '>90 days', "red3 bold"
+    else:
+        return '>90 days', "red3 dim"
 
 
 def build_vm_list(credentials):
@@ -129,8 +168,9 @@ def build_vm_list(credentials):
     The returned list contains nested lists, one header list, and one list
     for each VM. Each nested list contains the VM name, subscription, 
     resource group, size, location, status, and uptime.
+    The style column will be removed before the table is displayed.
     '''
-    headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status','TimeInState']
+    headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status','TimeInState','style']
 
     returned_list = list()
     returned_list.append(headers)
@@ -154,13 +194,13 @@ def build_vm_list(credentials):
                 vm_location = vmlocation(compute_client, resource_group, vm_name)
 
                 if vm_status == 'running':
-                    vm_time = get_vm_time(vm_id, monitor_client, switch="up")
+                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
                 elif vm_status == "deallocated":
-                    vm_time = get_vm_time(vm_id, monitor_client, switch="down")
+                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
                 elif vm_status == 'Unknown':
-                    vm_time = 'Unknown'
+                    vm_time, style_tag = 'Unknown', 'sky_blue3'
                 else:
-                    vm_time = '???'  # if unexpected result
+                    vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
 
                 returned_list.append([
                     vm_name, 
@@ -169,7 +209,8 @@ def build_vm_list(credentials):
                     vm_size, 
                     vm_location, 
                     vm_status, 
-                    vm_time
+                    vm_time, 
+                    style_tag
                 ])
 
     return returned_list
@@ -200,15 +241,21 @@ def vm_table():
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
 
-        table = Table(show_header=True, header_style="bold magenta", show_lines=True)
+        table = Table(show_header=True, header_style="bold", show_lines=True)
+
         # the column headers are in the first row of the list
-        for x in sorted_list[0]: 
-            table.add_column(x)
+        # remove style column from header row
+        header_list = sorted_list[0][:-1] 
+        for column_name in header_list: 
+            table.add_column(column_name)
 
         # Each row is a nested list.
         # Unpack each nested list into arguments for the add_row function
-        for x in sorted_list[1:]:
-            table.add_row(*x)
+        # Get the row's style from the last column in each row
+        # but discard the style column before adding the row
+        for row in sorted_list[1:]:
+            style_tag = row.pop() # pop style column off row
+            table.add_row(*row, style=style_tag)
 
         return table
     else:
