@@ -21,6 +21,7 @@ from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
+from rich.progress import track
 
 
 def sublist(client):
@@ -178,7 +179,7 @@ def build_vm_list(credentials):
     subscription_client = SubClient(credentials)
     subscriptions = sublist(subscription_client)
 
-    for subscription_id, subscription_name in subscriptions:
+    for subscription_id, subscription_name in track(subscriptions):
         resource_client = ResourceClient(credentials, subscription_id)
         compute_client = ComputeClient(credentials, subscription_id)
         monitor_client = MonitorClient(credentials, subscription_id)
