@@ -93,7 +93,7 @@ def diff_time(start_time, vm_status):
     elif vm_status == "deallocated":
         if uptime_days < 14:
             style_tag = "dark_sea_green4 dim"
-        elif uptime_days >= 14 and uptime_days < 28:
+        elif uptime_days >= 14 and uptime_days <= 28:
             style_tag = "gold1 dim"
         elif uptime_days > 28:
             style_tag = "dark_orange dim"
