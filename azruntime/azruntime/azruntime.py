@@ -22,6 +22,9 @@ from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
 from rich.progress import track
+from rich.spinner import Spinner
+from rich.live import Live
+import time
 
 
 def sublist(client):
@@ -176,45 +179,54 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-    subscription_client = SubClient(credentials)
-    subscriptions = sublist(subscription_client)
 
-    for subscription_id, subscription_name in track(subscriptions):
-        resource_client = ResourceClient(credentials, subscription_id)
-        compute_client = ComputeClient(credentials, subscription_id)
-        monitor_client = MonitorClient(credentials, subscription_id)
-        resource_groups = grouplist(resource_client)
+    spinner = Spinner("dots", text="", style="green")
 
-        for resource_group in resource_groups:
-            vms = vmlist(compute_client, resource_group)
+    with Live(spinner, refresh_per_second=4, transient=True) as live:
+        spinner.text = "Getting subscriptions"
 
-            for vm_name, vm_id in vms:
+        subscription_client = SubClient(credentials)
+        subscriptions = sublist(subscription_client)
 
-                vm_status = vmstatus(compute_client, resource_group, vm_name)
-                vm_size = vmsize(compute_client, resource_group, vm_name)
-                vm_location = vmlocation(compute_client, resource_group, vm_name)
+        for subscription_id, subscription_name in subscriptions:
 
-                if vm_status == 'running':
-                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
-                elif vm_status == "deallocated":
-                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
-                elif vm_status == 'Unknown':
-                    vm_time, style_tag = 'Unknown', 'sky_blue3'
-                else:
-                    vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+            resource_client = ResourceClient(credentials, subscription_id)
+            compute_client = ComputeClient(credentials, subscription_id)
+            monitor_client = MonitorClient(credentials, subscription_id)
+            resource_groups = grouplist(resource_client)
 
-                returned_list.append([
-                    vm_name, 
-                    subscription_name, 
-                    resource_group, 
-                    vm_size, 
-                    vm_location, 
-                    vm_status, 
-                    vm_time, 
-                    style_tag
-                ])
+            for resource_group in resource_groups:
+                vms = vmlist(compute_client, resource_group)
 
-    return returned_list
+                for vm_name, vm_id in vms:
+
+                    spinner.text = "Subscription: " + subscription_name + "  Resource Group: " + resource_group + "  VM: " + vm_name
+
+                    vm_status = vmstatus(compute_client, resource_group, vm_name)
+                    vm_size = vmsize(compute_client, resource_group, vm_name)
+                    vm_location = vmlocation(compute_client, resource_group, vm_name)
+
+                    if vm_status == 'running':
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
+                    elif vm_status == "deallocated":
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
+                    elif vm_status == 'Unknown':
+                        vm_time, style_tag = 'Unknown', 'sky_blue3'
+                    else:
+                        vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+
+                    returned_list.append([
+                        vm_name, 
+                        subscription_name, 
+                        resource_group, 
+                        vm_size, 
+                        vm_location, 
+                        vm_status, 
+                        vm_time, 
+                        style_tag
+                    ])
+
+        return returned_list
 
 
 def sort_by_column(input_list, *sort_keys):
