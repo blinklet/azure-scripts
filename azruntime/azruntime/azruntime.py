@@ -166,7 +166,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
         return '>90 days', "red3 dim"
 
 
-def build_vm_list(credentials, console):
+def build_vm_list(credentials):
     ''' 
     Build a list of all VMs in all the subscriptions visible to the user.
     The returned list contains nested lists, one header list, and one list
@@ -179,7 +179,9 @@ def build_vm_list(credentials, console):
     returned_list = list()
     returned_list.append(headers)
 
-    with console.status("[green]Getting subscriptions[/green]") as status:
+    newconsole = Console()
+
+    with newconsole.status("[green]Getting subscriptions[/green]") as status:
 
         subscription_client = SubClient(credentials)
         subscriptions = sublist(subscription_client)
@@ -237,7 +239,7 @@ def sort_by_column(input_list, *sort_keys):
     return list_to_sort
 
 
-def vm_table(console):
+def vm_table():
     credentials = DefaultAzureCredential(
         exclude_environment_credential = True,
         exclude_managed_identity_credential = True,
@@ -245,7 +247,7 @@ def vm_table(console):
         exclude_visual_studio_code_credential = True,
         exclude_interactive_browser_credential = False
     )
-    vm_list = build_vm_list(credentials,console)
+    vm_list = build_vm_list(credentials)
 
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
@@ -272,7 +274,7 @@ def vm_table(console):
 
 def main():
     console = Console()
-    console.print(vm_table(console))
+    console.print(vm_table())
 
 if __name__ == '__main__':
     main()
