@@ -166,7 +166,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
         return '>90 days', "red3 dim"
 
 
-def build_vm_list(credentials):
+def build_vm_list(credentials, console):
     ''' 
     Build a list of all VMs in all the subscriptions visible to the user.
     The returned list contains nested lists, one header list, and one list
@@ -179,11 +179,7 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-
-    spinner = Spinner("dots", text="", style="green")
-
-    with Live(spinner, refresh_per_second=4, transient=True) as live:
-        spinner.text = "Getting subscriptions"
+    with console.status("[green]Getting subscriptions[/green]") as status:
 
         subscription_client = SubClient(credentials)
         subscriptions = sublist(subscription_client)
@@ -200,7 +196,7 @@ def build_vm_list(credentials):
 
                 for vm_name, vm_id in vms:
 
-                    spinner.text = "Subscription: " + subscription_name + "  Resource Group: " + resource_group + "  VM: " + vm_name
+                    status.update(status="[grey74]Subscription: [/grey74][green4]" + subscription_name + "[/green4][grey74]  Resource Group: [/grey74][green4]" + resource_group + "[/green4][grey74]  VM: [/grey74][green4]" + vm_name + "[/green4]")
 
                     vm_status = vmstatus(compute_client, resource_group, vm_name)
                     vm_size = vmsize(compute_client, resource_group, vm_name)
@@ -241,7 +237,7 @@ def sort_by_column(input_list, *sort_keys):
     return list_to_sort
 
 
-def vm_table():
+def vm_table(console):
     credentials = DefaultAzureCredential(
         exclude_environment_credential = True,
         exclude_managed_identity_credential = True,
@@ -249,7 +245,7 @@ def vm_table():
         exclude_visual_studio_code_credential = True,
         exclude_interactive_browser_credential = False
     )
-    vm_list = build_vm_list(credentials)
+    vm_list = build_vm_list(credentials,console)
 
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
@@ -276,7 +272,7 @@ def vm_table():
 
 def main():
     console = Console()
-    console.print(vm_table())
+    console.print(vm_table(console))
 
 if __name__ == '__main__':
     main()
