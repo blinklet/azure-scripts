@@ -175,46 +175,51 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-    subscription_client = SubClient(credentials)
-    subscriptions = sublist(subscription_client)
+    console = Console()
+    with console.status("[green]Getting subscriptions[/green]") as status:
 
-    for subscription_id, subscription_name in subscriptions:
+        subscription_client = SubClient(credentials)
+        subscriptions = sublist(subscription_client)
 
-        resource_client = ResourceClient(credentials, subscription_id)
-        compute_client = ComputeClient(credentials, subscription_id)
-        monitor_client = MonitorClient(credentials, subscription_id)
-        resource_groups = grouplist(resource_client)
+        for subscription_id, subscription_name in subscriptions:
 
-        for resource_group in resource_groups:
-            vms = vmlist(compute_client, resource_group)
+            resource_client = ResourceClient(credentials, subscription_id)
+            compute_client = ComputeClient(credentials, subscription_id)
+            monitor_client = MonitorClient(credentials, subscription_id)
+            resource_groups = grouplist(resource_client)
 
-            for vm_name, vm_id in vms:
+            for resource_group in resource_groups:
+                vms = vmlist(compute_client, resource_group)
 
-                vm_status = vmstatus(compute_client, resource_group, vm_name)
-                vm_size = vmsize(compute_client, resource_group, vm_name)
-                vm_location = vmlocation(compute_client, resource_group, vm_name)
+                for vm_name, vm_id in vms:
 
-                if vm_status == 'running':
-                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
-                elif vm_status == "deallocated":
-                    vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
-                elif vm_status == 'Unknown':
-                    vm_time, style_tag = 'Unknown', 'sky_blue3'
-                else:
-                    vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+                    status.update(status="[grey74]Subscription: [/grey74][green4]" + subscription_name + "[/green4][grey74]  Resource Group: [/grey74][green4]" + resource_group + "[/green4][grey74]  VM: [/grey74][green4]" + vm_name + "[/green4]")
 
-                returned_list.append([
-                    vm_name, 
-                    subscription_name, 
-                    resource_group, 
-                    vm_size, 
-                    vm_location, 
-                    vm_status, 
-                    vm_time, 
-                    style_tag
-                ])
+                    vm_status = vmstatus(compute_client, resource_group, vm_name)
+                    vm_size = vmsize(compute_client, resource_group, vm_name)
+                    vm_location = vmlocation(compute_client, resource_group, vm_name)
 
-    return returned_list
+                    if vm_status == 'running':
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
+                    elif vm_status == "deallocated":
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
+                    elif vm_status == 'Unknown':
+                        vm_time, style_tag = 'Unknown', 'sky_blue3'
+                    else:
+                        vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+
+                    returned_list.append([
+                        vm_name, 
+                        subscription_name, 
+                        resource_group, 
+                        vm_size, 
+                        vm_location, 
+                        vm_status, 
+                        vm_time, 
+                        style_tag
+                    ])
+
+        return returned_list
 
 
 def sort_by_column(input_list, *sort_keys):
