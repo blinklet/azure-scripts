@@ -170,16 +170,25 @@ def build_vm_list(credentials):
     resource group, size, location, status, and uptime.
     The style column will be removed before the table is displayed.
     '''
-    headers = ['VM name','Subscription','ResourceGroup','Size','Location','Status','TimeInState','style']
+    headers = [
+        'VM name',
+        'Subscription',
+        'ResourceGroup',
+        'Size',
+        'Location',
+        'Status',
+        'TimeInState',
+        'style'
+    ]
 
     returned_list = list()
     returned_list.append(headers)
 
-    console = Console()
-    with console.status("[green]Getting subscriptions[/green]") as status:
+    subscription_client = SubClient(credentials)
+    subscriptions = sublist(subscription_client)
 
-        subscription_client = SubClient(credentials)
-        subscriptions = sublist(subscription_client)
+    console = Console()
+    with console.status("[green4]Getting subscriptions[/green4]") as status:
 
         for subscription_id, subscription_name in subscriptions:
 
@@ -193,7 +202,15 @@ def build_vm_list(credentials):
 
                 for vm_name, vm_id in vms:
 
-                    status.update(status="[grey74]Subscription: [/grey74][green4]" + subscription_name + "[/green4][grey74]  Resource Group: [/grey74][green4]" + resource_group + "[/green4][grey74]  VM: [/grey74][green4]" + vm_name + "[/green4]")
+                    status.update(
+                        "[grey74]Subscription: [green4]" +
+                        subscription_name +
+                        "[/green4]  Resource Group: [green4]" +
+                        resource_group +
+                        "[/green4]  VM: [green4]" +
+                        vm_name +
+                        "[/green4][/grey74]"
+                    )
 
                     vm_status = vmstatus(compute_client, resource_group, vm_name)
                     vm_size = vmsize(compute_client, resource_group, vm_name)
