@@ -12,10 +12,10 @@ Prerequisites:
         rich
 '''
 
-from azure.mgmt.resource import SubscriptionClient as SubClient
-from azure.mgmt.resource import ResourceManagementClient as ResourceClient
-from azure.mgmt.compute import ComputeManagementClient as ComputeClient
-from azure.mgmt.monitor import MonitorManagementClient as MonitorClient
+from azure.mgmt.resource import SubscriptionClient
+from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.monitor import MonitorManagementClient
 from azure.identity import DefaultAzureCredential
 from datetime import datetime, timezone, timedelta
 from operator import itemgetter
@@ -184,7 +184,7 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-    subscription_client = SubClient(credentials)
+    subscription_client = SubscriptionClient(credentials)
     subscriptions = sublist(subscription_client)
 
     console = Console()
@@ -192,9 +192,9 @@ def build_vm_list(credentials):
 
         for subscription_id, subscription_name in subscriptions:
 
-            resource_client = ResourceClient(credentials, subscription_id)
-            compute_client = ComputeClient(credentials, subscription_id)
-            monitor_client = MonitorClient(credentials, subscription_id)
+            resource_client = ResourceManagementClient(credentials, subscription_id)
+            compute_client = ComputeManagementClient(credentials, subscription_id)
+            monitor_client = MonitorManagementClient(credentials, subscription_id)
             resource_groups = grouplist(resource_client)
 
             for resource_group in resource_groups:
