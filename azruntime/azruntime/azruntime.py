@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
-
+import time
 
 def sublist(client):
     return [(sub.subscription_id, sub.display_name) for sub in client.subscriptions.list()] 
@@ -289,5 +289,7 @@ def main():
     console.print(vm_table())
 
 if __name__ == '__main__':
+    start_time = time.perf_counter()
     main()
-    
+    elapsed = time.perf_counter() - start_time
+    print(f"Table built in {elapsed:0.2f} seconds. Main branch")
