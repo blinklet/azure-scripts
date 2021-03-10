@@ -22,17 +22,15 @@ from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
 
+import time
+
 
 def sublist(client):
     return [(sub.subscription_id, sub.display_name) for sub in client.subscriptions.list()] 
 
 
-def grouplist(client):
-    return [group.name for group in client.resource_groups.list()]
-
-
-def vmlist(client, group):
-    return [(vm.name, vm.id) for vm in client.virtual_machines.list(group)]
+def vmlist(client):
+    return [(vm.name, vm.id) for vm in client.virtual_machines.list_all()]
 
 
 def vmsize(client, group, vm):
@@ -184,59 +182,57 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-    subscription_client = SubscriptionClient(credentials)
-    subscriptions = sublist(subscription_client)
-
     console = Console()
     with console.status("[green4]Getting subscriptions[/green4]") as status:
 
-        for subscription_id, subscription_name in subscriptions:
+        with SubscriptionClient(credentials) as subscription_client:
+            subscriptions = sublist(subscription_client)
 
-            resource_client = ResourceManagementClient(credentials, subscription_id)
-            compute_client = ComputeManagementClient(credentials, subscription_id)
-            monitor_client = MonitorManagementClient(credentials, subscription_id)
-            resource_groups = grouplist(resource_client)
+            for subscription_id, subscription_name in subscriptions:
 
-            for resource_group in resource_groups:
-                vms = vmlist(compute_client, resource_group)
+                with ComputeManagementClient(credentials, subscription_id) as compute_client, MonitorManagementClient(credentials, subscription_id) as monitor_client:
 
-                for vm_name, vm_id in vms:
+                    vms = vmlist(compute_client)
 
-                    status.update(
-                        "[grey74]Subscription: [green4]" +
-                        subscription_name +
-                        "[/green4]  Resource Group: [green4]" +
-                        resource_group +
-                        "[/green4]  VM: [green4]" +
-                        vm_name +
-                        "[/green4][/grey74]"
-                    )
+                    for vm_name, vm_id in vms:
 
-                    vm_status = vmstatus(compute_client, resource_group, vm_name)
-                    vm_size = vmsize(compute_client, resource_group, vm_name)
-                    vm_location = vmlocation(compute_client, resource_group, vm_name)
+                        resource_group = vm_id.split('/')[4].lower()
 
-                    if vm_status == 'running':
-                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
-                    elif vm_status == "deallocated":
-                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
-                    elif vm_status == 'Unknown':
-                        vm_time, style_tag = 'Unknown', 'sky_blue3'
-                    else:
-                        vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+                        status.update(
+                            "[grey74]Subscription: [green4]" +
+                            subscription_name +
+                            "[/green4]  Resource Group: [green4]" +
+                            resource_group +
+                            "[/green4]  VM: [green4]" +
+                            vm_name +
+                            "[/green4][/grey74]"
+                        )
 
-                    returned_list.append([
-                        vm_name, 
-                        subscription_name, 
-                        resource_group, 
-                        vm_size, 
-                        vm_location, 
-                        vm_status, 
-                        vm_time, 
-                        style_tag
-                    ])
+                        vm_status = vmstatus(compute_client, resource_group, vm_name)
+                        vm_size = vmsize(compute_client, resource_group, vm_name)
+                        vm_location = vmlocation(compute_client, resource_group, vm_name)
 
-        return returned_list
+                        if vm_status == 'running':
+                            vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
+                        elif vm_status == "deallocated":
+                            vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
+                        elif vm_status == 'Unknown':
+                            vm_time, style_tag = 'Unknown', 'sky_blue3'
+                        else:
+                            vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+
+                        returned_list.append([
+                            vm_name, 
+                            subscription_name, 
+                            resource_group, 
+                            vm_size, 
+                            vm_location, 
+                            vm_status, 
+                            vm_time, 
+                            style_tag
+                        ])
+
+    return returned_list
 
 
 def sort_by_column(input_list, *sort_keys):
@@ -289,5 +285,8 @@ def main():
     console.print(vm_table())
 
 if __name__ == '__main__':
+    start_time = time.perf_counter()
     main()
+    elapsed = time.perf_counter() - start_time
+    print(f"Table built in {elapsed:0.2f} seconds.")
     
