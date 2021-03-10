@@ -58,8 +58,8 @@ def vmstatus(client, group, vm):
 
     # Status code is always a two-part code, divided by a forward-slash.
     # The first is usually "PowerState" and the second is "running" or "deallocated".
-    power, state = results.split('/')  
-    return state
+    powerstate, status = results.split('/')  
+    return status
 
 
 def diff_time(start_time, vm_status):
