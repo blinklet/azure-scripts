@@ -11,9 +11,7 @@ Prerequisites:
 (env) $ pip install azure-mgmt-resource azure-mgmt-compute \
         azure-identity rich azure-mgmt-monitor
 """
-
 from azure.mgmt.resource import SubscriptionClient
-from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.monitor import MonitorManagementClient
 from azure.identity import DefaultAzureCredential
