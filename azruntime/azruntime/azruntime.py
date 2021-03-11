@@ -127,7 +127,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
     Returns:
         tuple: 
             uptime_string (str): Example - '2 days, 12 hours' 
-            style_tag (str): Example - 'dark_sea_green4 dim'
+            style_tags (str): Example - 'dark_sea_green4 dim'
     """
 
     # If you filter using a date older than 89 days, you may see 
@@ -154,7 +154,8 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
             succeeded = (log.status.value == 'Succeeded')
             
             if vm_deallocated and succeeded:
-                return diff_time(log.event_timestamp, vm_status)
+                uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
+                return uptime_string, style_tags
 
         elif vm_status == 'running':
             # Look for the most recent successful start or creation log
@@ -163,7 +164,8 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
             succeeded = (log.status.value == 'Succeeded')
             
             if (vm_started or vm_created) and succeeded:
-                return diff_time(log.event_timestamp, vm_status)
+                uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
+                return uptime_string, style_tags
 
         else:
             return "invalid vm_status", "blue"  # to catch programming errors 
