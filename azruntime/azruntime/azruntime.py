@@ -46,6 +46,7 @@ def vmstatus(client, group, vm):
     Returns the power state of a VM instance. If there is no state to 
     read, returns state = "Unknown".
     '''
+
     # Sometimes, the instanceview.statuses list is empty or contains only one element.
     # This occurs when a VM fails to deploy properly but also it seems to
     # occasionally occur for no obvious reason. We check for it and move on.
@@ -61,14 +62,25 @@ def vmstatus(client, group, vm):
 
 
 def diff_time(start_time, vm_status):
+    """Calculates the time difference between the VM's log timestamp and the present time.
+
+    The color used in the returned style tag will differ if the vmstatus is
+    'running' or 'deallocated'. We use different styles to running highlight 
+    VMs that have been running too long, or deallocated VMs that are too old.
+
+    Args:
+        start_time (str): A timestamp string in datetime format
+        vm_status (str): Must be either 'running' or 'deallocated'
+
+    Raises:
+        ValueError: If invalid vm_status is passed to this function
+
+    Returns:
+        tuple:
+            uptime_string (str): Example - '2 days, 12 hours' 
+            style_tag (str): Example - 'dark_sea_green4 dim'
     """
-    diff_time function calculates the time difference between the 
-    start_time parameter and the present time. It returns a tuple. 
-    The first item is string like '2 days, 4 hours' and the second 
-    item is a string for the style argument used to style the row. 
-    We use different styles to running highlight VMs that have been 
-    running too long, or deallocated VMs that are too old.
-    """
+    
     now = datetime.now(timezone.utc)
     uptime = (now - start_time) / timedelta(hours=1)
     uptime_string = ""
@@ -77,7 +89,13 @@ def diff_time(start_time, vm_status):
     uptime_days = int(uptime) // 24
     uptime_hours = int(uptime) % 24
 
-    # set color for row style
+    # build uptime string to return
+    if uptime_days == 0:
+        uptime_string = str(uptime_hours) + ' hours'
+    else:
+        uptime_string = str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
+
+    # set color for row style tag to return
     if vm_status == "running":
         if uptime_days == 0:
             style_tag = "dark_sea_green4"
@@ -97,22 +115,23 @@ def diff_time(start_time, vm_status):
     else:
         raise ValueError("vm_status is not expected value")
 
-    # build string to return
-    if uptime_days == 0:
-        uptime_string = str(uptime_hours) + ' hours'
-    else:
-        uptime_string = str(uptime_days) + ' days, '+ str(uptime_hours) + ' hours'
-
     return uptime_string, style_tag
 
 
 def get_vm_time(vm_id, monitor_client, vm_status='running'):
-    '''
-    Looks for most recent startup or shutdown log and returns a tuple. 
-    First returned item is the time delta and the second returned item 
-    is a style that another function uses to set the colors in the 
-    output table.
-    '''
+    """Looks for the VM's most recent startup or shutdown log within the past 89 days. 
+
+    Args:
+        vm_id (str): Virtual machine ID
+        monitor_client (azure.mgmt.monitor._monitor_management_client.MonitorManagementClient()): Microsoft Azure activity monitor API client
+        vm_status (str, optional): Should be either 'running' or 'deallocated'. Defaults to 'running'.
+
+    Returns:
+        tuple: 
+            uptime_string (str): Example - '2 days, 12 hours' 
+            style_tag (str): Example - 'dark_sea_green4 dim'
+    """
+
     # If you filter using a date older than 89 days, you may see 
     # an error message like: "msrest.exceptions.DeserializationError"
     past_date = datetime.now(timezone.utc) - timedelta(days=89)
@@ -160,14 +179,20 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
         return '>90 days', "red3 dim"
 
 
-def build_vm_list(credentials):
-    ''' 
-    Build a list of all VMs in all the subscriptions visible to the user.
-    The returned list contains nested lists, one header list, and one list
-    for each VM. Each nested list contains the VM name, subscription, 
-    resource group, size, location, status, and uptime.
-    The style column will be removed before the table is displayed.
-    '''
+def build_vm_list(credentials, status):
+    """Build a list of all VMs in all the subscriptions visible to the user.
+
+    Args:
+        credentials (azure.core.credentials.AzureKeyCredential()): Microsoft Azure credential token
+        status (rich.status.Status): A context manager for the console status updates.
+
+    Returns:
+        list: The returned list contains nested lists, one header list, and one list
+              for each VM. Each nested list contains the VM name, subscription, 
+              resource group, size, location, status, uptime, and style.
+              The style column is used to format the table that will be built using
+              this list as an argument.
+    """
     headers = [
         'VM name',
         'Subscription',
@@ -182,61 +207,60 @@ def build_vm_list(credentials):
     returned_list = list()
     returned_list.append(headers)
 
-    console = Console()
-    with console.status("[green4]Getting subscriptions[/green4]") as status:
+    status.update("[green4]Getting subscriptions[/green4]")
 
-        with SubscriptionClient(credentials) as subscription_client:
-            subscriptions = sublist(subscription_client)
+    with SubscriptionClient(credentials) as subscription_client:
+        subscriptions = sublist(subscription_client)
 
-            for subscription_id, subscription_name in subscriptions:
+        for subscription_id, subscription_name in subscriptions:
 
-                with ComputeManagementClient(credentials, subscription_id) as compute_client, MonitorManagementClient(credentials, subscription_id) as monitor_client:
+            with ComputeManagementClient(credentials, subscription_id) as compute_client, MonitorManagementClient(credentials, subscription_id) as monitor_client:
 
-                    vms = vmlist(compute_client)
+                vms = vmlist(compute_client)
 
-                    for vm_name, vm_id in vms:
+                for vm_name, vm_id in vms:
 
-                        resource_group = vm_id.split('/')[4].lower()
+                    resource_group = vm_id.split('/')[4].lower()
 
-                        status.update(
-                            "[grey74]Subscription: [green4]" +
-                            subscription_name +
-                            "[/green4]  Resource Group: [green4]" +
-                            resource_group +
-                            "[/green4]  VM: [green4]" +
-                            vm_name +
-                            "[/green4][/grey74]"
-                        )
+                    status.update(
+                        "[grey74]Subscription: [green4]" +
+                        subscription_name +
+                        "[/green4]  Resource Group: [green4]" +
+                        resource_group +
+                        "[/green4]  VM: [green4]" +
+                        vm_name +
+                        "[/green4][/grey74]"
+                    )
 
-                        vm_status = vmstatus(compute_client, resource_group, vm_name)
-                        vm_size = vmsize(compute_client, resource_group, vm_name)
-                        vm_location = vmlocation(compute_client, resource_group, vm_name)
+                    vm_status = vmstatus(compute_client, resource_group, vm_name)
+                    vm_size = vmsize(compute_client, resource_group, vm_name)
+                    vm_location = vmlocation(compute_client, resource_group, vm_name)
 
-                        if vm_status == 'running':
-                            vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
-                        elif vm_status == "deallocated":
-                            vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
-                        elif vm_status == 'Unknown':
-                            vm_time, style_tag = 'Unknown', 'sky_blue3'
-                        else:
-                            vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
+                    if vm_status == 'running':
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="running")
+                    elif vm_status == "deallocated":
+                        vm_time, style_tag = get_vm_time(vm_id, monitor_client, vm_status="deallocated")
+                    elif vm_status == 'Unknown':
+                        vm_time, style_tag = 'Unknown', 'sky_blue3'
+                    else:
+                        vm_time, style_tag = '???', 'sky_blue3'  # if unexpected result
 
-                        returned_list.append([
-                            vm_name, 
-                            subscription_name, 
-                            resource_group, 
-                            vm_size, 
-                            vm_location, 
-                            vm_status, 
-                            vm_time, 
-                            style_tag
-                        ])
+                    returned_list.append([
+                        vm_name, 
+                        subscription_name, 
+                        resource_group, 
+                        vm_size, 
+                        vm_location, 
+                        vm_status, 
+                        vm_time, 
+                        style_tag
+                    ])
 
     return returned_list
 
 
 def sort_by_column(input_list, *sort_keys):
-    ''' Sort a list by columns, except for the first row '''
+    """Sort a list by columns, except for the first row"""
     
     headers = input_list[0]
     list_to_sort = input_list[1:]
@@ -247,7 +271,25 @@ def sort_by_column(input_list, *sort_keys):
     return list_to_sort
 
 
-def vm_table():
+def vm_table(status):
+    """Build a table showing the length of time each VM in your subscriptions
+    is in either 'running' or 'deallocated' status. 
+    
+    An example of the way to call this function is shown below:
+
+        console = Console()
+        with console.status("[green4]Starting[/green4]") as status:
+            console.print(vm_table(status))
+
+    Args:
+        status (rich.status.Status): A context manager for the console status updates.
+        Use the same Console() instance that you will use to print the table object.
+
+    Returns:
+        rich.table.Table: A Rich-formatted table object
+    """
+    status.update("[green4]Getting your Azure credentials[/green4]")
+
     credentials = DefaultAzureCredential(
         exclude_environment_credential = True,
         exclude_managed_identity_credential = True,
@@ -255,34 +297,43 @@ def vm_table():
         exclude_visual_studio_code_credential = True,
         exclude_interactive_browser_credential = False
     )
-    vm_list = build_vm_list(credentials)
+    vm_list = build_vm_list(credentials, status)
 
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
 
         table = Table(show_header=True, header_style="bold", show_lines=True)
 
-        # the column headers are in the first row of the list
-        # remove style column from header row
+        # The column headers are in the first row of the list.
+        # Remove the style column from the header row.
         header_list = sorted_list[0][:-1] 
+
+        # Set up the table columns using the list of headers
         for column_name in header_list: 
             table.add_column(column_name)
 
         # Each row is a nested list.
         # Unpack each nested list into arguments for the add_row function
-        # Get the row's style from the last column in each row
-        # but discard the style column before adding the row
+        # Remove the style column from the end of each row and
+        # save its value and use it to format the row in the table.
         for row in sorted_list[1:]:
-            style_tag = row.pop() # pop style column off row
+            style_tag = row.pop()
             table.add_row(*row, style=style_tag)
 
         return table
     else:
         return "No VMs found"
 
+
 def main():
-    console = Console()
-    console.print(vm_table())
+    """Set up a Rich console context and call the vm_table() function
+    that returns the Rich table object. Print the table using Rich.
+    """
+    with Console() as console:
+        with console.status("[green4]Starting[/green4]") as status:
+            console.print(vm_table(status))
+
+
 
 if __name__ == '__main__':
     main()
