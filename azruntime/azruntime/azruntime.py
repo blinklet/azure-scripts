@@ -147,50 +147,45 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
 
     logs = monitor_client.activity_logs.list(filter=filter, select=select)
 
-    if vm_status == 'deallocated':
-        uptime_string, style_tags = next(
-            (diff_time(log.event_timestamp, vm_status) for log in logs if (
-                    log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action') and 
-                    (log.status.value == 'Succeeded')), ('>90 days', "red3 dim")
-        )
-        return uptime_string, style_tags
+    #######################################################
+    # The following code block is commented out because I replaced it with the 
+    # code below, which is easier to read. But I did not want to lose this example
+    # of using the next() function to get the first occurance of a condition in
+    # an iterable. See: https://stackoverflow.com/questions/9542738/python-find-in-list
+    ###########################################################
+    # if vm_status == 'deallocated':
+    #     return(next((diff_time(log.event_timestamp, vm_status) for log in logs if (log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action') and (log.status.value == 'Succeeded')), ('>90 days', "red3 dim")))
+    #
+    # if vm_status == 'running':
+    #     return(next((diff_time(log.event_timestamp, vm_status) for log in logs if (((log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action') or (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')) and (log.status.value == 'Succeeded'))), ('>90 days', "red3 bold")))
+    ###########################################################
 
     if vm_status == 'running':
-        uptime_string, style_tags = next((diff_time(log.event_timestamp, vm_status) for log in logs if (((log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action') or (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')) and (log.status.value == 'Succeeded'))), ('>90 days', "red3 bold"))
-        return uptime_string, style_tags
+        for log in logs:
+            vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
+            vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
+            succeeded = (log.status.value == 'Succeeded')
+            if (vm_started or vm_created) and succeeded:
+                uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
+                return uptime_string, style_tags
 
-    return "invalid vm_status", "blue"  # to catch programming errors 
-
-    # for log in logs:
-    #     if vm_status == 'deallocated':
-    #         # Look for the most recent successful deallocation log
-    #         vm_deallocated = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action')
-    #         succeeded = (log.status.value == 'Succeeded')
-            
-    #         if vm_deallocated and succeeded:
-    #             uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
-    #             return uptime_string, style_tags
-
-    #     elif vm_status == 'running':
-    #         # Look for the most recent successful start or creation log
-    #         vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
-    #         vm_created = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')
-    #         succeeded = (log.status.value == 'Succeeded')
-            
-    #         if (vm_started or vm_created) and succeeded:
-    #             uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
-    #             return uptime_string, style_tags
-
-    #     else:
-    #         return "invalid vm_status", "blue"  # to catch programming errors 
+    if vm_status == 'deallocated':
+        for log in logs:
+            vm_deallocated = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/deallocate/action')
+            succeeded = (log.status.value == 'Succeeded')
+            if vm_deallocated and succeeded:
+                uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
+                return uptime_string, style_tags
 
     # If the loop completes without finding a successful VM start or create log,
     # or if the logs iterator is empty (so loop does not execute), 
     # VM has been running for more than 90 days.
     if vm_status == "running":
         return '>90 days', "red3 bold"
-    else:
+    elif vm_status == "deallocated":
         return '>90 days', "red3 dim"
+    else:
+        return "invalid vm_status", "blue"  # to catch programming errors
 
 
 def build_vm_list(credentials, status):
