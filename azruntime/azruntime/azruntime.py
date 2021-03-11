@@ -7,6 +7,13 @@ When you run it, the script will launch a browser window which
 will start the Azure interactive login process. So, this script 
 must be run on a desktop environment.
 
+vm_table(console_status)
+
+build_vm_list(credentials, console_status)
+
+get_vm_time(vm_id, monitor_client, vm_status)
+
+
 Prerequisites:
 (env) $ pip install azure-mgmt-resource azure-mgmt-compute \
         azure-identity rich azure-mgmt-monitor
@@ -53,8 +60,8 @@ def vmstatus(client, group, vm):
 
     # Status code is always a two-part code, divided by a forward-slash.
     # The first is usually "PowerState" and the second is "running" or "deallocated".
-    powerstate, status = results.split('/')  
-    return status
+    powerstate, machine_status = results.split('/')  
+    return machine_status
 
 
 def diff_time(start_time, vm_status):
@@ -182,12 +189,12 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
         return '>90 days', "red3 dim"
 
 
-def build_vm_list(credentials, status):
+def build_vm_list(credentials, console_status):
     """Build a list of all VMs in all the subscriptions visible to the user.
 
     Args:
         credentials (azure.core.credentials.AzureKeyCredential()): Microsoft Azure credential token
-        status (rich.status.Status): A context manager for the console status updates.
+        console_status (rich.status.Status): A context manager for the console status updates.
 
     Returns:
         list: The returned list contains nested lists, one header list, and one list
@@ -210,7 +217,7 @@ def build_vm_list(credentials, status):
     returned_list = list()
     returned_list.append(headers)
 
-    status.update("[green4]Getting subscriptions[/green4]")
+    console_status.update("[green4]Getting subscriptions[/green4]")
 
     with SubscriptionClient(credentials) as subscription_client:
         subscriptions = sublist(subscription_client)
@@ -225,7 +232,7 @@ def build_vm_list(credentials, status):
 
                     resource_group = vm_id.split('/')[4].lower()
 
-                    status.update(
+                    console_status.update(
                         "[grey74]Subscription: [green4]" +
                         subscription_name +
                         "[/green4]  Resource Group: [green4]" +
@@ -274,24 +281,24 @@ def sort_by_column(input_list, *sort_keys):
     return list_to_sort
 
 
-def vm_table(status):
+def vm_table(console_status):
     """Build a table showing the length of time each VM in your subscriptions
     is in either 'running' or 'deallocated' status. 
     
     An example of the way to call this function is shown below:
 
         console = Console()
-        with console.status("[green4]Starting[/green4]") as status:
-            console.print(vm_table(status))
+        with console.status("[green4]Starting[/green4]") as console_status:
+            console.print(vm_table(console_status))
 
     Args:
-        status (rich.status.Status): A context manager for the console status updates.
+        console_status (rich.status.Status): A context manager for the console status updates.
         Use the same Console() instance that you will use to print the table object.
 
     Returns:
         rich.table.Table: A Rich-formatted table object
     """
-    status.update("[green4]Getting your Azure credentials[/green4]")
+    console_status.update("[green4]Getting your Azure credentials[/green4]")
 
     credentials = DefaultAzureCredential(
         exclude_environment_credential = True,
@@ -300,7 +307,7 @@ def vm_table(status):
         exclude_visual_studio_code_credential = True,
         exclude_interactive_browser_credential = False
     )
-    vm_list = build_vm_list(credentials, status)
+    vm_list = build_vm_list(credentials, console_status)
 
     if len(vm_list) > 1:  # An empty vm_list still has a header row
         sorted_list = sort_by_column(vm_list,'Status','ResourceGroup','Size')
@@ -333,8 +340,8 @@ def main():
     that returns the Rich table object. Print the table using Rich.
     """
     with Console() as console:
-        with console.status("[green4]Starting[/green4]") as status:
-            console.print(vm_table(status))
+        with console.status("[green4]Starting[/green4]") as console_status:
+            console.print(vm_table(console_status))
 
 
 
