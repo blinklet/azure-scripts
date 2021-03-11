@@ -12,7 +12,6 @@ setup(
         'azure-mgmt-resource',
         'azure-mgmt-compute',
         'azure-mgmt-monitor',
-        'azure-cli-core',
         'rich'
     ],
     version='0.5',

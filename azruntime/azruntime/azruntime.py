@@ -1,16 +1,16 @@
-'''
+"""
 List all VMs in your subscriptions in a formatted table.
 The columns are: VM name, subscription, resource group, size, 
-location, and status. Each row is a unique VM.
+location, and status. Each row represents a unique VM.
 
-You must login to Azure CLI before you run this script:
-$ az login
+When you run it, the script will launch a browser window which 
+will start the Azure interactive login process. So, this script 
+must be run on a desktop environment.
 
 Prerequisites:
 (env) $ pip install azure-mgmt-resource azure-mgmt-compute \
-        azure-identity azure-cli-core rich azure-mgmt-monitor \
-        rich
-'''
+        azure-identity rich azure-mgmt-monitor
+"""
 
 from azure.mgmt.resource import SubscriptionClient
 from azure.mgmt.resource import ResourceManagementClient
@@ -21,8 +21,6 @@ from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
-
-import time
 
 
 def sublist(client):
@@ -80,7 +78,7 @@ def diff_time(start_time, vm_status):
             uptime_string (str): Example - '2 days, 12 hours' 
             style_tag (str): Example - 'dark_sea_green4 dim'
     """
-    
+
     now = datetime.now(timezone.utc)
     uptime = (now - start_time) / timedelta(hours=1)
     uptime_string = ""
