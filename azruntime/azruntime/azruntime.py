@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 from operator import itemgetter
 from rich.console import Console
 from rich.table import Table
-
+import time
 
 def sublist(client):
     return [(sub.subscription_id, sub.display_name) for sub in client.subscriptions.list()] 
