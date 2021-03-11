@@ -1,22 +1,51 @@
 """
 List all VMs in your subscriptions in a formatted table.
+
 The columns are: VM name, subscription, resource group, size, 
-location, and status. Each row represents a unique VM.
+location, and status. Each row represents a unique VM. Each row is 
+colored according to teh VM status and time it has been in that state.
 
 When you run it, the script will launch a browser window which 
-will start the Azure interactive login process. So, this script 
+starts the Azure interactive login process. So, this script 
 must be run on a desktop environment.
 
-vm_table(console_status)
+If importing this module, the three functions you might want to
+use are listed below:
 
-build_vm_list(credentials, console_status)
+    vm_table(console_status):
 
-get_vm_time(vm_id, monitor_client, vm_status)
+        Prints a table of VM information. 
+        gets Azure credentials, calls build_vm_list() and formats list as a table.
+        programmer must create a Rich console context before calling this function.
+        See the example below:
 
+            with Console() as console:
+                with console.status("[green4]Starting[/green4]") as console_status:
+                    tbl = vm_table(console_status)
+                    console.print(tbl)
+            
+    build_vm_list(credentials, console_status):
 
-Prerequisites:
-(env) $ pip install azure-mgmt-resource azure-mgmt-compute \
-        azure-identity rich azure-mgmt-monitor
+        Builds a VM list with the required information about each VM.
+        Pass in the console_status context manager so the status updates
+        appear in the same console.
+        Iterates through all VMs in each subscription and calls the
+        get_vm_time() and adds the uptime and style tag information
+        to the VM table. 
+        
+    get_vm_time(vm_id, monitor_client, vm_status):
+
+        Iterates through the activity logs for the VM's most recent startup or 
+        shutdown log within the past 89 daysthe VM. Returns the time since that
+        log was timestamped, and a style tag to help format the table created in
+        vm_table().
+
+Dependencies:
+    azure-mgmt-resource 
+    azure-mgmt-compute
+    azure-mgmt-monitor
+    azure-identity 
+    rich
 """
 from azure.mgmt.resource import SubscriptionClient
 from azure.mgmt.compute import ComputeManagementClient
@@ -45,10 +74,9 @@ def vmlocation(client, group, vm):
 
 
 def vmstatus(client, group, vm):
-    ''' 
-    Returns the power state of a VM instance. If there is no state to 
-    read, returns state = "Unknown".
-    '''
+    """Returns the power state of a VM instance. 
+    If there is no state to read, returns state = "Unknown".
+    """
 
     # Sometimes, the instanceview.statuses list is empty or contains only one element.
     # This occurs when a VM fails to deploy properly but also it seems to
@@ -350,4 +378,3 @@ if __name__ == '__main__':
     main()
     elapsed = time.perf_counter() - start_time
     print(f"Operation completed in {elapsed:0.2f} seconds.")
-    
