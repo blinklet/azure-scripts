@@ -149,7 +149,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
 
     #######################################################
     # The following code block is commented out because I replaced it with the 
-    # code below, which is easier to read. But I did not want to lose this example
+    # code further below, which is easier to read. But I did not want to lose this example
     # of using the next() function to get the first occurance of a condition in
     # an iterable. See: https://stackoverflow.com/questions/9542738/python-find-in-list
     ###########################################################
@@ -160,6 +160,10 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
     #     return(next((diff_time(log.event_timestamp, vm_status) for log in logs if (((log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action') or (log.operation_name.value == 'Microsoft.Compute/virtualMachines/write')) and (log.status.value == 'Succeeded'))), ('>90 days', "red3 bold")))
     ###########################################################
 
+    # If the for loop in either of the if blocks below completes 
+    # without finding a successful VM start or create log,
+    # or if the logs iterator is empty (so loop does not execute), 
+    # then the VM has been running for more than 90 days.
     if vm_status == 'running':
         for log in logs:
             vm_started = (log.operation_name.value == 'Microsoft.Compute/virtualMachines/start/action')
@@ -168,6 +172,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
             if (vm_started or vm_created) and succeeded:
                 uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
                 return uptime_string, style_tags
+        return '>90 days', "red3 bold"
 
     if vm_status == 'deallocated':
         for log in logs:
@@ -176,16 +181,7 @@ def get_vm_time(vm_id, monitor_client, vm_status='running'):
             if vm_deallocated and succeeded:
                 uptime_string, style_tags = diff_time(log.event_timestamp, vm_status)
                 return uptime_string, style_tags
-
-    # If the loop completes without finding a successful VM start or create log,
-    # or if the logs iterator is empty (so loop does not execute), 
-    # VM has been running for more than 90 days.
-    if vm_status == "running":
-        return '>90 days', "red3 bold"
-    elif vm_status == "deallocated":
         return '>90 days', "red3 dim"
-    else:
-        return "invalid vm_status", "blue"  # to catch programming errors
 
 
 def build_vm_list(credentials, status):
